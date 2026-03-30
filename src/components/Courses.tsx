@@ -3,19 +3,25 @@
 import { useState, useEffect } from 'react'
 import { useDashboardStore, Assignment } from '@/lib/store'
 import { Toast, useToast } from './Toast'
-import { Plus, Trash2, ChevronDown, ChevronUp } from 'lucide-react'
+import { Plus, Trash2, ChevronDown, ChevronUp, GraduationCap } from 'lucide-react'
+
+const COURSE_COLORS = [
+  { bg: 'rgba(255,71,87,0.12)',   text: '#FF4757',   border: 'rgba(255,71,87,0.25)' },
+  { bg: 'rgba(14,202,150,0.12)',  text: '#0ECA96',   border: 'rgba(14,202,150,0.25)' },
+  { bg: 'rgba(139,112,250,0.12)', text: '#8B70FA',   border: 'rgba(139,112,250,0.25)' },
+  { bg: 'rgba(245,185,66,0.12)',  text: '#F5B942',   border: 'rgba(245,185,66,0.25)' },
+  { bg: 'rgba(99,179,237,0.12)',  text: '#63B3ED',   border: 'rgba(99,179,237,0.25)' },
+]
 
 export default function Courses() {
   const { courses, updateCourse, addAssignment, toggleAssignment, removeAssignment } = useDashboardStore()
   const { toast, show, hide } = useToast()
-  const [expanded, setExpanded] = useState<string | null>(null)
-  const [localNotes, setLocalNotes] = useState<Record<string, string>>({})
+  const [expanded,      setExpanded]      = useState<string | null>(null)
+  const [localNotes,    setLocalNotes]    = useState<Record<string, string>>({})
   const [newAssignment, setNewAssignment] = useState<Record<string, { title: string; dueDate: string }>>({})
-  const [hydrated, setHydrated] = useState(false)
+  const [hydrated,      setHydrated]      = useState(false)
 
-  useEffect(() => {
-    setHydrated(true)
-  }, [])
+  useEffect(() => { setHydrated(true) }, [])
 
   useEffect(() => {
     if (hydrated) {
@@ -26,7 +32,7 @@ export default function Courses() {
   }, [hydrated, courses])
 
   if (!hydrated) {
-    return <div className="text-gray-400 text-center py-10">Loading...</div>
+    return <div className="text-[#555568] text-center py-16">Loading…</div>
   }
 
   function saveNote(id: string) {
@@ -57,38 +63,54 @@ export default function Courses() {
       {toast && <Toast message={toast} onDone={hide} />}
 
       <div className="space-y-3">
-        {courses.map(course => {
-          const isOpen = expanded === course.id
+        {courses.map((course, idx) => {
+          const isOpen         = expanded === course.id
           const completedCount = course.assignments.filter(a => a.completed).length
+          const color          = COURSE_COLORS[idx % COURSE_COLORS.length]
 
           return (
             <div key={course.id} className="card space-y-3">
               {/* Header */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-white font-semibold">{course.name}</h3>
-                  {course.instructor && (
-                    <p className="text-gray-400 text-xs mt-0.5">Instructor: {course.instructor}</p>
-                  )}
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div
+                    className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                    style={{ background: color.bg, border: `1px solid ${color.border}` }}
+                  >
+                    <GraduationCap size={15} style={{ color: color.text }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-white font-semibold truncate">{course.name}</h3>
+                    {course.instructor && (
+                      <p className="text-[#8181A0] text-xs mt-0.5">{course.instructor}</p>
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-[#a78bfa] bg-[#a78bfa20] px-2 py-1 rounded-lg">
+                <div className="flex items-center gap-2 shrink-0">
+                  <span
+                    className="text-xs px-2 py-1 rounded-lg font-semibold"
+                    style={{ background: color.bg, color: color.text }}
+                  >
                     {course.progress}%
                   </span>
                   <button
                     onClick={() => setExpanded(isOpen ? null : course.id)}
-                    className="text-gray-400 hover:text-white transition-colors"
+                    className="text-[#555568] hover:text-[#ECEDF3] transition-colors cursor-pointer p-1"
+                    aria-expanded={isOpen}
+                    aria-label={isOpen ? 'Collapse course' : 'Expand course'}
                   >
-                    {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    {isOpen ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
                   </button>
                 </div>
               </div>
 
-              {/* Progress Slider */}
-              <div className="space-y-1">
-                <div className="flex justify-between text-xs text-gray-400 mb-1">
-                  <span>Progress</span>
-                  <span>{course.progress}%</span>
+              {/* Progress bar */}
+              <div className="space-y-1.5">
+                <div className="w-full rounded-full h-2" style={{ background: 'rgba(255,255,255,0.07)' }}>
+                  <div
+                    className="h-2 rounded-full transition-all duration-500"
+                    style={{ width: `${course.progress}%`, background: color.text }}
+                  />
                 </div>
                 <input
                   type="range"
@@ -96,51 +118,58 @@ export default function Courses() {
                   max={100}
                   value={course.progress}
                   onChange={e => handleProgressChange(course.id, parseInt(e.target.value))}
-                  className="w-full accent-[#a78bfa] cursor-pointer"
+                  className="w-full cursor-pointer"
+                  style={{ accentColor: color.text }}
+                  aria-label={`${course.name} progress: ${course.progress}%`}
                 />
-                <div className="w-full bg-[#ffffff10] rounded-full h-1.5">
-                  <div
-                    className="h-1.5 rounded-full bg-[#a78bfa] transition-all duration-300"
-                    style={{ width: `${course.progress}%` }}
-                  />
-                </div>
               </div>
 
-              {/* Assignments summary */}
+              {/* Assignment count */}
               {course.assignments.length > 0 && (
-                <div className="text-xs text-gray-400">
-                  Assignments: {completedCount}/{course.assignments.length} completed
-                </div>
+                <p className="text-xs text-[#8181A0]">
+                  Assignments:&nbsp;
+                  <span className="text-[#ECEDF3] font-medium">
+                    {completedCount}/{course.assignments.length}
+                  </span>
+                  &nbsp;completed
+                </p>
               )}
 
               {/* Expanded */}
               {isOpen && (
-                <div className="space-y-4 pt-3 border-t border-[#ffffff10]">
-                  {/* Assignments */}
+                <div className="space-y-4 pt-3 border-t border-[rgba(255,255,255,0.07)]">
+                  {/* Assignment list */}
                   <div className="space-y-2">
-                    <h4 className="text-sm font-medium text-white">Assignments</h4>
+                    <h4 className="text-sm font-semibold text-[#ECEDF3]">Assignments</h4>
                     {course.assignments.length === 0 && (
-                      <p className="text-gray-500 text-xs">No assignments yet.</p>
+                      <p className="text-[#555568] text-xs">No assignments yet.</p>
                     )}
                     {course.assignments.map(a => (
-                      <div key={a.id} className="flex items-center gap-2 bg-[#0f0f1a] border border-[#ffffff10] rounded-lg px-3 py-2">
+                      <div
+                        key={a.id}
+                        className="card-inner flex items-center gap-2.5 px-3 py-2.5"
+                      >
                         <input
                           type="checkbox"
                           checked={a.completed}
                           onChange={() => toggleAssignment(course.id, a.id)}
-                          className="accent-[#51cf66] cursor-pointer"
+                          className="shrink-0"
+                          aria-label={`Toggle assignment: ${a.title}`}
                         />
-                        <span className={`flex-1 text-sm ${a.completed ? 'line-through text-gray-500' : 'text-white'}`}>
+                        <span className={`flex-1 text-sm ${a.completed ? 'line-through text-[#555568]' : 'text-[#ECEDF3]'}`}>
                           {a.title}
                         </span>
                         {a.dueDate && (
-                          <span className="text-xs text-gray-500">{a.dueDate}</span>
+                          <span className="text-xs text-[#8181A0] shrink-0">
+                            {new Date(a.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          </span>
                         )}
                         <button
                           onClick={() => removeAssignment(course.id, a.id)}
-                          className="text-gray-500 hover:text-[#ff6b6b] transition-colors"
+                          className="text-[#555568] hover:text-[#FF4757] transition-colors cursor-pointer shrink-0"
+                          aria-label={`Remove assignment: ${a.title}`}
                         >
-                          <Trash2 size={14} />
+                          <Trash2 size={13} />
                         </button>
                       </div>
                     ))}
@@ -151,24 +180,23 @@ export default function Courses() {
                         type="text"
                         placeholder="Assignment title"
                         value={newAssignment[course.id]?.title || ''}
-                        onChange={e => setNewAssignment(a => ({
-                          ...a,
-                          [course.id]: { ...a[course.id], title: e.target.value }
-                        }))}
-                        className="flex-1 bg-[#0f0f1a] border border-[#ffffff20] text-white rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-[#a78bfa]"
+                        onChange={e => setNewAssignment(a => ({ ...a, [course.id]: { ...a[course.id], title: e.target.value } }))}
+                        onKeyDown={e => e.key === 'Enter' && handleAddAssignment(course.id)}
+                        className="flex-1 bg-[#09090F] border border-[rgba(255,255,255,0.1)] text-white rounded-xl px-3 py-2 text-sm focus:border-[rgba(139,112,250,0.4)] transition-colors"
+                        aria-label="New assignment title"
                       />
                       <input
                         type="date"
                         value={newAssignment[course.id]?.dueDate || ''}
-                        onChange={e => setNewAssignment(a => ({
-                          ...a,
-                          [course.id]: { ...a[course.id], dueDate: e.target.value }
-                        }))}
-                        className="bg-[#0f0f1a] border border-[#ffffff20] text-white rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-[#a78bfa]"
+                        onChange={e => setNewAssignment(a => ({ ...a, [course.id]: { ...a[course.id], dueDate: e.target.value } }))}
+                        className="bg-[#09090F] border border-[rgba(255,255,255,0.1)] text-white rounded-xl px-2 py-2 text-sm focus:border-[rgba(139,112,250,0.4)] transition-colors"
+                        aria-label="Assignment due date"
                       />
                       <button
                         onClick={() => handleAddAssignment(course.id)}
-                        className="bg-[#a78bfa] text-white p-1.5 rounded-lg hover:opacity-80 transition-opacity"
+                        className="p-2 rounded-xl cursor-pointer transition-colors"
+                        style={{ background: color.bg, color: color.text }}
+                        aria-label="Add assignment"
                       >
                         <Plus size={16} />
                       </button>
@@ -176,19 +204,20 @@ export default function Courses() {
                   </div>
 
                   {/* Notes */}
-                  <div className="space-y-1">
-                    <label className="text-xs text-gray-400">Notes:</label>
+                  <div className="space-y-1.5">
+                    <label className="text-xs text-[#8181A0] font-medium" htmlFor={`course-notes-${course.id}`}>Notes</label>
                     <textarea
+                      id={`course-notes-${course.id}`}
                       value={localNotes[course.id] ?? course.notes}
                       onChange={e => setLocalNotes(n => ({ ...n, [course.id]: e.target.value }))}
                       rows={3}
-                      placeholder="Course notes, key topics, reminders..."
-                      className="w-full bg-[#0f0f1a] border border-[#ffffff20] text-white rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:border-[#a78bfa]"
+                      placeholder="Course notes, key topics, reminders…"
+                      className="w-full bg-[#09090F] border border-[rgba(255,255,255,0.1)] text-white rounded-xl px-3 py-2.5 text-sm resize-none focus:border-[rgba(139,112,250,0.4)] transition-colors"
                     />
                     <div className="flex justify-end">
                       <button
                         onClick={() => saveNote(course.id)}
-                        className="text-xs bg-[#51cf6620] text-[#51cf66] px-3 py-1 rounded-lg hover:bg-[#51cf6640] transition-colors"
+                        className="text-xs bg-[rgba(14,202,150,0.14)] text-[#0ECA96] px-3 py-2 rounded-xl hover:bg-[rgba(14,202,150,0.25)] transition-colors cursor-pointer font-medium"
                       >
                         Save Notes
                       </button>

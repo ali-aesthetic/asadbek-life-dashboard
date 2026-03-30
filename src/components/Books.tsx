@@ -3,31 +3,35 @@
 import { useState, useEffect } from 'react'
 import { useDashboardStore, BookStatus } from '@/lib/store'
 import { Toast, useToast } from './Toast'
-import { Star, ChevronDown, ChevronUp } from 'lucide-react'
+import { Star, ChevronDown, ChevronUp, BookOpen } from 'lucide-react'
 
 const STATUS_LABELS: Record<BookStatus, string> = {
   not_started: 'Not Started',
-  in_progress: 'In Progress',
-  completed: 'Completed',
+  in_progress: 'Reading',
+  completed:   'Completed',
 }
 
-const STATUS_COLORS: Record<BookStatus, string> = {
-  not_started: 'text-gray-400 bg-[#ffffff10]',
-  in_progress: 'text-[#a78bfa] bg-[#a78bfa20]',
-  completed: 'text-[#51cf66] bg-[#51cf6620]',
+const STATUS_STYLE: Record<BookStatus, { bg: string; text: string; border: string }> = {
+  not_started: { bg: 'rgba(255,255,255,0.05)', text: '#555568',   border: 'rgba(255,255,255,0.07)' },
+  in_progress: { bg: 'rgba(139,112,250,0.14)', text: '#8B70FA',   border: 'rgba(139,112,250,0.3)' },
+  completed:   { bg: 'rgba(14,202,150,0.14)',  text: '#0ECA96',   border: 'rgba(14,202,150,0.3)' },
+}
+
+const PROGRESS_COLOR: Record<BookStatus, string> = {
+  not_started: 'rgba(255,255,255,0.15)',
+  in_progress: '#8B70FA',
+  completed:   '#0ECA96',
 }
 
 export default function Books() {
   const { books, updateBook } = useDashboardStore()
   const { toast, show, hide } = useToast()
-  const [expanded, setExpanded] = useState<string | null>(null)
+  const [expanded,   setExpanded]   = useState<string | null>(null)
   const [localNotes, setLocalNotes] = useState<Record<string, string>>({})
   const [localPages, setLocalPages] = useState<Record<string, string>>({})
-  const [hydrated, setHydrated] = useState(false)
+  const [hydrated,   setHydrated]   = useState(false)
 
-  useEffect(() => {
-    setHydrated(true)
-  }, [])
+  useEffect(() => { setHydrated(true) }, [])
 
   useEffect(() => {
     if (hydrated) {
@@ -43,7 +47,7 @@ export default function Books() {
   }, [hydrated, books])
 
   if (!hydrated) {
-    return <div className="text-gray-400 text-center py-10">Loading...</div>
+    return <div className="text-[#555568] text-center py-16">Loading…</div>
   }
 
   function cycleStatus(id: string, current: BookStatus) {
@@ -59,7 +63,7 @@ export default function Books() {
   }
 
   function savePages(id: string, totalPages: number) {
-    const v = parseInt(localPages[id] || '0')
+    const v       = parseInt(localPages[id] || '0')
     const clamped = Math.max(0, Math.min(v, totalPages))
     updateBook(id, { currentPage: clamped })
     show('Progress saved!')
@@ -70,87 +74,112 @@ export default function Books() {
     show('Rating saved!')
   }
 
-  const completedCount = books.filter(b => b.status === 'completed').length
+  const completedCount  = books.filter(b => b.status === 'completed').length
   const inProgressCount = books.filter(b => b.status === 'in_progress').length
+  const notStartedCount = books.length - completedCount - inProgressCount
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {toast && <Toast message={toast} onDone={hide} />}
 
-      {/* Summary */}
-      <div className="grid grid-cols-3 gap-4">
-        <div className="card text-center">
-          <div className="text-2xl font-bold text-[#51cf66]">{completedCount}</div>
-          <div className="text-xs text-gray-400 mt-1">Completed</div>
-        </div>
-        <div className="card text-center">
-          <div className="text-2xl font-bold text-[#a78bfa]">{inProgressCount}</div>
-          <div className="text-xs text-gray-400 mt-1">In Progress</div>
-        </div>
-        <div className="card text-center">
-          <div className="text-2xl font-bold text-white">{books.length - completedCount - inProgressCount}</div>
-          <div className="text-xs text-gray-400 mt-1">Not Started</div>
-        </div>
+      {/* ── Summary ── */}
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          { value: completedCount,  label: 'Completed', color: '#0ECA96' },
+          { value: inProgressCount, label: 'Reading',   color: '#8B70FA' },
+          { value: notStartedCount, label: 'To Read',   color: '#555568' },
+        ].map(({ value, label, color }) => (
+          <div key={label} className="card flex flex-col items-center justify-center py-4 gap-1">
+            <span
+              className="text-3xl leading-none"
+              style={{
+                fontFamily: 'var(--font-bebas), "Bebas Neue", sans-serif',
+                letterSpacing: '0.04em',
+                color,
+              }}
+            >
+              {value}
+            </span>
+            <span className="text-[11px] text-[#8181A0] uppercase tracking-widest font-medium">{label}</span>
+          </div>
+        ))}
       </div>
 
-      {/* Book Cards */}
+      {/* ── Book List ── */}
       <div className="space-y-3">
         {books.map(book => {
-          const isOpen = expanded === book.id
-          const progress = book.totalPages > 0 ? Math.round((book.currentPage / book.totalPages) * 100) : 0
+          const isOpen   = expanded === book.id
+          const progress = book.totalPages > 0
+            ? Math.round((book.currentPage / book.totalPages) * 100)
+            : 0
+          const st = STATUS_STYLE[book.status]
 
           return (
             <div key={book.id} className="card space-y-3">
-              {/* Header */}
+              {/* Header row */}
               <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-white font-semibold text-sm leading-tight">{book.title}</h3>
-                  <p className="text-gray-400 text-xs mt-0.5">{book.author}</p>
+                <div className="flex items-start gap-3 flex-1 min-w-0">
+                  <div
+                    className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5"
+                    style={{ background: st.bg }}
+                  >
+                    <BookOpen size={14} style={{ color: st.text }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-white font-semibold text-sm leading-snug truncate">{book.title}</h3>
+                    <p className="text-[#8181A0] text-xs mt-0.5">{book.author}</p>
+                  </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <button
                     onClick={() => cycleStatus(book.id, book.status)}
-                    className={`text-xs px-2 py-1 rounded-lg font-medium transition-all cursor-pointer ${STATUS_COLORS[book.status]}`}
+                    className="text-xs px-2.5 py-1 rounded-lg font-medium transition-all duration-200 cursor-pointer border"
+                    style={{ background: st.bg, color: st.text, borderColor: st.border }}
+                    aria-label={`Book status: ${STATUS_LABELS[book.status]}. Click to change.`}
                   >
                     {STATUS_LABELS[book.status]}
                   </button>
                   <button
                     onClick={() => setExpanded(isOpen ? null : book.id)}
-                    className="text-gray-400 hover:text-white transition-colors"
+                    className="text-[#555568] hover:text-[#ECEDF3] transition-colors cursor-pointer p-1"
+                    aria-expanded={isOpen}
+                    aria-label={isOpen ? 'Collapse book details' : 'Expand book details'}
                   >
-                    {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    {isOpen ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
                   </button>
                 </div>
               </div>
 
               {/* Progress bar */}
-              <div className="space-y-1">
-                <div className="flex justify-between text-xs text-gray-400">
+              <div className="space-y-1.5">
+                <div className="flex justify-between text-xs text-[#8181A0]">
                   <span>{book.currentPage} / {book.totalPages} pages</span>
                   <span>{progress}%</span>
                 </div>
-                <div className="w-full bg-[#ffffff10] rounded-full h-1.5">
+                <div className="w-full rounded-full h-2" style={{ background: 'rgba(255,255,255,0.07)' }}>
                   <div
-                    className="h-1.5 rounded-full transition-all duration-300"
+                    className="h-2 rounded-full transition-all duration-500"
                     style={{
                       width: `${progress}%`,
-                      background: book.status === 'completed' ? '#51cf66' : book.status === 'in_progress' ? '#a78bfa' : '#ffffff30',
+                      background: PROGRESS_COLOR[book.status],
                     }}
                   />
                 </div>
               </div>
 
-              {/* Star Rating */}
-              <div className="flex gap-1">
+              {/* Stars */}
+              <div className="flex gap-1" role="group" aria-label={`Rating: ${book.rating} out of 5`}>
                 {[1, 2, 3, 4, 5].map(star => (
                   <button
                     key={star}
                     onClick={() => setRating(book.id, star)}
-                    className="transition-transform hover:scale-110"
+                    className="transition-transform hover:scale-110 cursor-pointer"
+                    aria-label={`Rate ${star} star${star !== 1 ? 's' : ''}`}
                   >
                     <Star
                       size={14}
-                      className={star <= book.rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-600'}
+                      className={star <= book.rating ? 'fill-current' : ''}
+                      style={{ color: star <= book.rating ? '#F5B942' : '#3A3A4A' }}
                     />
                   </button>
                 ))}
@@ -158,40 +187,44 @@ export default function Books() {
 
               {/* Expanded */}
               {isOpen && (
-                <div className="space-y-3 pt-2 border-t border-[#ffffff10]">
+                <div className="space-y-3 pt-3 border-t border-[rgba(255,255,255,0.07)]">
                   {/* Page input */}
                   <div className="flex gap-2 items-center">
-                    <label className="text-xs text-gray-400 w-24 shrink-0">Current page:</label>
+                    <label className="text-xs text-[#8181A0] w-24 shrink-0" htmlFor={`page-${book.id}`}>
+                      Current page
+                    </label>
                     <input
+                      id={`page-${book.id}`}
                       type="number"
                       min={0}
                       max={book.totalPages}
                       value={localPages[book.id] ?? book.currentPage}
                       onChange={e => setLocalPages(p => ({ ...p, [book.id]: e.target.value }))}
-                      className="w-24 bg-[#0f0f1a] border border-[#ffffff20] text-white rounded-lg px-2 py-1 text-sm focus:outline-none focus:border-[#a78bfa]"
+                      className="w-24 bg-[#09090F] border border-[rgba(139,112,250,0.25)] text-white rounded-xl px-3 py-2 text-sm focus:border-[#8B70FA] transition-colors"
                     />
                     <button
                       onClick={() => savePages(book.id, book.totalPages)}
-                      className="text-xs bg-[#a78bfa20] text-[#a78bfa] px-3 py-1 rounded-lg hover:bg-[#a78bfa40] transition-colors"
+                      className="text-xs bg-[rgba(139,112,250,0.14)] text-[#8B70FA] px-3 py-2 rounded-xl hover:bg-[rgba(139,112,250,0.25)] transition-colors cursor-pointer font-medium"
                     >
                       Save
                     </button>
                   </div>
 
                   {/* Notes */}
-                  <div className="space-y-1">
-                    <label className="text-xs text-gray-400">Notes:</label>
+                  <div className="space-y-1.5">
+                    <label className="text-xs text-[#8181A0] font-medium" htmlFor={`notes-${book.id}`}>Notes</label>
                     <textarea
+                      id={`notes-${book.id}`}
                       value={localNotes[book.id] ?? book.notes}
                       onChange={e => setLocalNotes(n => ({ ...n, [book.id]: e.target.value }))}
                       rows={3}
-                      placeholder="Your thoughts, highlights, key ideas..."
-                      className="w-full bg-[#0f0f1a] border border-[#ffffff20] text-white rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:border-[#a78bfa]"
+                      placeholder="Your thoughts, highlights, key ideas…"
+                      className="w-full bg-[#09090F] border border-[rgba(255,255,255,0.1)] text-white rounded-xl px-3 py-2.5 text-sm resize-none focus:border-[rgba(139,112,250,0.4)] transition-colors"
                     />
                     <div className="flex justify-end">
                       <button
                         onClick={() => saveNote(book.id)}
-                        className="text-xs bg-[#51cf6620] text-[#51cf66] px-3 py-1 rounded-lg hover:bg-[#51cf6640] transition-colors"
+                        className="text-xs bg-[rgba(14,202,150,0.14)] text-[#0ECA96] px-3 py-2 rounded-xl hover:bg-[rgba(14,202,150,0.25)] transition-colors cursor-pointer font-medium"
                       >
                         Save Notes
                       </button>
